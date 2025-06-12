@@ -1,0 +1,8 @@
+
+services:
+  this-is-a-test:
+    build: .
+    command: go run main.go
+    #volumes:
+    #  - ./:/app
+

@@ -3,54 +3,27 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
-
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/dockermodelrunner"
 )
 
 // go test -v -run TestHawaiianPizzaExpert
 func TestHawaiianPizzaExpert(t *testing.T) {
 	ctx := context.Background()
 
-	fmt.Println("🚀 Starting test...")
-
-	dmrCtr, err := dockermodelrunner.Run(ctx)
-	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
-	}
-
-	defer func() {
-		fmt.Println("🧹 Cleaning up container...")
-		if err := testcontainers.TerminateContainer(dmrCtr); err != nil {
-			t.Logf("failed to terminate container: %s", err)
-		}
-	}()
-
-	fmt.Println("📥 Pulling model...")
-	const (
-		modelNamespace = "ai"
-		modelName      = "qwen2.5"
-		modelTag       = "0.5B-F16"
-	)
-
-	err = dmrCtr.PullModel(ctx, modelNamespace+"/"+modelName+":"+modelTag)
-	if err != nil {
-		t.Fatalf("failed to pull model: %s", err)
-	}
-
-	fmt.Println("🔗 Getting LLM URL...")
-	llmURL := dmrCtr.OpenAIEndpoint()
-	fmt.Printf("🌐 URL: %s\n", llmURL)
+	llmURL := os.Getenv("MODEL_RUNNER_BASE_URL") + "/engines/llama.cpp/v1/"
+	model := os.Getenv("MODEL_RUNNER_LLM_CHAT")
 
 	client := openai.NewClient(
 		option.WithBaseURL(llmURL),
-		option.WithAPIKey(""), // No API key needed for Model Runner
+		option.WithAPIKey(""),
 	)
+
+	fmt.Println("🐳🤖 ENDPOINT:", llmURL)
 
 	messages := []openai.ChatCompletionMessageParamUnion{
 		openai.SystemMessage(`
@@ -85,13 +58,14 @@ func TestHawaiianPizzaExpert(t *testing.T) {
 
 	param := openai.ChatCompletionNewParams{
 		Messages:    messages,
-		Model:       modelNamespace + "/" + modelName + ":" + modelTag,
-		Temperature: openai.Opt(0.0),
+		Model:       model,
+		Temperature: openai.Opt(0.8),
 	}
 
 	completion, err := client.Chat.Completions.New(ctx, param)
+
 	if err != nil {
-		t.Fatalf("chat completion failed: %s", err)
+		t.Fatalf("😡 chat completion failed: %s", err)
 	}
 
 	fmt.Println("🐳🤖", completion.Choices[0].Message.Content)
@@ -101,7 +75,7 @@ func TestHawaiianPizzaExpert(t *testing.T) {
 	expectedWords := []string{"cheese", "bacon", "pineapple"}
 	for _, word := range expectedWords {
 		if !strings.Contains(response, word) {
-			t.Errorf("Expected response to contain word '%s', but it was not found", word)
+			t.Errorf("😡 Expected response to contain word '%s', but it was not found", word)
 		}
 	}
 
